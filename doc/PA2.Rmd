@@ -91,3 +91,103 @@ So, in my opinion, the answer to question is:
 ** 4. Wild Fires** It looks exists protocols against this because there are not many events, but the mean of injuries is very high: 37.5
 
 
+## Question 2: Across the United States, which types of events have the greatest economic consequences?
+
+According the info provided into document: "*NATIONAL WEATHER SERVICE INSTRUCTION 10-1605*" Impact on economy is stored into **PROPDMG** and **PROPDMGEXP**. this one indicates the units of previous one.
+
+### Normalize data
+
+First step is to use the same unit for all damages, the problem is PROPDMGEXP is not normalized:
+```{r}
+unique(df$PROPDMGEXP)
+```
+
+So we asume these criteria:
+
+1.- N/A = 1 (Normally N/A is associated with 0 value)
+2.- Number is a multiplier
+3.- B/M/K/T/H as usual: Billion, Million, ....
+4.- Other data assume 1 unit
+
+```{r}
+par(mfrow=c(1,1))
+calculate <- function(Amount, Unit) {
+      if (is.na(Unit)) return (Amount * 1)
+      if (is.numeric(Unit)) return (Amount * Unit)
+      if (Unit == "B" || Unit == "b") return (Amount * 1000000000)
+      if (Unit == "M" || Unit == "M") return (Amount * 1000000)
+      if (Unit == "K" || Unit == "k") return (Amount * 1000)
+      if (Unit == "H" || Unit == "h") return (Amount * 100)
+      Amount
+}
+dft <- df %>% rowwise() %>% mutate(Cost = calculate(PROPDMG, PROPDMGEXP))
+```
+
+And now take a look on data:
+
+```{r}
+summary(dft)
+```
+
+Again, there are some "*outliers*", because mean of Cost is 142 USD but there are at least one which cost is more than 91,000.
+
+However, when we get the most expensive events:
+
+```{r}
+Sorted <- dft[order(-dft$Amount),]
+head(Sorted)
+```
+
+
+We can see that the event types matchs the previous conclusions related to human injuries. So the answer to question can be the same
+
+### Analyzing outlier
+
+The event type with the second higher value looks a bit strange, so we dive into:
+
+1.- First, order the data frame by Injuries in descending order
+
+2.- Retrieve the second record to identify the event type
+
+3.- Analyze this event 
+
+```{r}
+dfs <- df[order(-df$INJURIES),]
+dfs[2,"EVTYPE"]
+dfs <- subset(dfs, EVTYPE == dfs[2,"EVTYPE"] )
+summary(dfs$INJURIES)
+```
+
+As we can see, even though the max is 1,568 the mean is almost one, so we can consider this event as an exceptional situation.
+
+
+### Comparing frequencies against quantities
+
+In order to answer to question we need to consider two situations:
+
+A. Events not very usuals but highly dangerous
+B. Frequent events although not very dangerous
+
+Lets compare these situtations getting the top five by mean and and total:
+
+```{r}
+par(mfrow=c(1,2))
+grouped <- df %>% group_by(EVTYPE) %>% summarise(Total=n(), Mean=mean(INJURIES))
+dfMean <- grouped[order(-grouped$Mean),]
+dfTotal<- grouped[order(-grouped$Total),]
+grid.arrange(tableGrob(dfMean[1:5,]),
+             tableGrob(dfTotal[1:5,]),
+             nrow=1)
+```
+
+On the left we can see not very frequency events but dangerous; in example,  we have only 4 Wild Fires but each time this time occurs a lot of people is injuried.
+
+On the right side we have got another vision, each event is not very harmful but they are so frequents that we need to consider as dagerous for population.
+
+So, in my opinion, the answer to question is:
+
+** 1. Tornados** They are very common
+** 2. Tropical Storms and Winds** Also common in South of Country and eventually very harmful
+** 3. Heat Wave**
+** 4. Wild Fires** It looks exists protocols against this because there are not many events, but the mean of injuries is very high: 37.5
+
