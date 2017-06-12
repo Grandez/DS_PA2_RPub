@@ -1,0 +1,93 @@
+---
+title: "Reproducible Research: Peer Assessment 1"
+output: 
+  html_document:
+    keep_md: true
+---
+```{r opts, echo = FALSE}
+  knitr::opts_chunk$set(
+     fig.path = "images/"
+  )
+```
+
+## Loading and preprocessing the data
+
+First at all loads the required libraries
+
+```{r}
+library(dplyr, warn.conflicts=F, quietly=T)
+library(tidyr, warn.conflicts=F, quietly=T)
+library(ggplot2, warn.conflicts=F, quietly=T)
+library(gridExtra, warn.conflicts=F, quietly=T)
+```
+
+Data is stored into data subdirectory.
+Usually, the first step should be take a look into raw data from command line: In example with more command. But in this case wew know is a csv file
+
+We try to read the file as csv, then we take a look to data frame with head (beginning of file) and tail (end of file) and structure
+
+```{r}
+df <- read.csv("../data/repdata_data_StormData.csv.bz2", na.strings="")
+summary(df)
+```
+
+## Question 1: Across the United States, which types of events are most harmful with respect to population health?
+
+According the info provided into document: "*NATIONAL WEATHER SERVICE INSTRUCTION 10-1605*" Impact on population health, as direct as indirect is stored into field **INJURIES**. So take a look at Injuries by type of Event
+
+
+```{r}
+plot(INJURIES ~ EVTYPE, data=df, main="Injuries by Event Type")
+```
+
+### Analyzing outlier
+
+The event type with the second higher value looks a bit strange, so we dive into:
+
+1.- First, order the data frame by Injuries in descending order
+
+2.- Retrieve the second record to identify the event type
+
+3.- Analyze this event 
+
+```{r}
+dfs <- df[order(-df$INJURIES),]
+dfs[2,"EVTYPE"]
+dfs <- subset(dfs, EVTYPE == dfs[2,"EVTYPE"] )
+summary(dfs$INJURIES)
+```
+
+As we can see, even though the max is 1,568 the mean is almost one, so we can consider this event as an exceptional situation.
+
+
+### Comparing frequencies against quantities
+
+In order to answer to question we need to consider two situations:
+
+A. Events not very usuals but highly dangerous
+B. Frequent events although not very dangerous
+
+Lets compare these situtations getting the top five by mean and and total:
+
+```{r}
+par(mfrow=c(1,2))
+grouped <- df %>% group_by(EVTYPE) %>% summarise(Total=n(), Mean=mean(INJURIES))
+dfMean <- grouped[order(-grouped$Mean),]
+dfTotal<- grouped[order(-grouped$Total),]
+grid.arrange(tableGrob(dfMean[1:5,]),
+             tableGrob(dfTotal[1:5,]),
+             nrow=1)
+```
+
+On the left we can see not very frequency events but dangerous; in example,  we have only 4 Wild Fires but each time this time occurs a lot of people is injuried.
+
+On the right side we have got another vision, each event is not very harmful but they are so frequents that we need to consider as dagerous for population.
+
+So, in my opinion, the answer to question is:
+
+** 1. Tornados** They are very common
+** 2. Tropical Storms and Winds** Also common in South of Country and eventually very harmful
+** 3. Heat Wave**
+** 4. Wild Fires** It looks exists protocols against this because there are not many events, but the mean of injuries is very high: 37.5
+
+
